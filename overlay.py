@@ -1,7 +1,7 @@
 #!/usr/bin/python3
-# @ made by d-rez / dark_skeleton
+# @ original made by d-rez / dark_skeleton
 # Requires:
-# - ADS1015 with Vbat on A0
+# - INA219 with correct sense resistor
 # - pngview
 # - a symbolic link to ic_battery_alert_red_white_36dp.png under
 #   material_design_icons_master/device/drawable-mdpi/
@@ -11,7 +11,6 @@
 # - code comments. someday...
 
 import time
-import Adafruit_ADS1x15
 import subprocess
 import os
 import re
@@ -21,6 +20,13 @@ from datetime import datetime
 from statistics import median
 from collections import deque
 from enum import Enum
+
+import board
+import busio
+import adafruit_ina219
+i2c = busio.I2C(board.SCL, board.SDA)
+sensor = adafruit_ina219.INA219(i2c)
+sensor.set_calibration_16V_5A()
 
 pngview_path="/usr/local/bin/pngview"
 pngview_call=[pngview_path, "-d", "0", "-b", "0x0000", "-n", "-l", "15000", "-y", "0", "-x"]
@@ -79,17 +85,6 @@ class InterfaceState(Enum):
 # 3.9V => not charging, 100%
 # 3.2V => will die in 10 mins under load, shut down
 # 3.3V => warning icon?
-
-adc = Adafruit_ADS1x15.ADS1015()
-# Choose a gain of 1 for reading voltages from 0 to 4.09V.
-# Or pick a different gain to change the range of voltages that are read:
-#  - 2/3 = +/-6.144V
-#  -   1 = +/-4.096V
-#  -   2 = +/-2.048V
-#  -   4 = +/-1.024V
-#  -   8 = +/-0.512V
-#  -  16 = +/-0.256V
-# See table 3 in the ADS1015i/ADS1115 datasheet for more info on gain.
 
 def translate_bat(voltage):
   # Figure out how 'wide' each range is
@@ -239,8 +234,8 @@ my_logger.info(resolution)
 
 while True:
   (battery_level, value_v) = battery()
-  wifi_state = wifi()
-  bt_state = bluetooth()
+  # wifi_state = wifi()
+  # bt_state = bluetooth()
   env = environment()
   my_logger.info("%s,median: %.2f, %s,icon: %s,wifi: %s,bt: %s, throttle: %#0x" % (
     datetime.now(),
